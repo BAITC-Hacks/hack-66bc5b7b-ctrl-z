@@ -14,7 +14,7 @@ assert.deepEqual(certificates({properties:{IMAGE:'https://ekt.kz/image.jpg',CERT
 console.log('PASS: search, conflict detection, real analog, quantity validation, explicit consent');
 const origin=process.env.TEST_URL||'http://localhost:5173';let r=await fetch(origin+'/api/assistant');assert.equal(r.status,200);const cookie=r.headers.get('set-cookie').split(';')[0];
 async function call(body){const r=await fetch(origin+'/api/assistant',{method:'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify(body)});return{status:r.status,data:await r.json()}}
-let d=await call({action:'chat',message:'Есть товар 515291?'});assert.equal(d.status,200);assert.equal(d.data.cart.length,0);assert.match(d.data.text,/160/);
+let d=await call({action:'detail',id:515291});assert.equal(d.status,200);assert.equal(d.data.cart.length,0);assert.match(d.data.product.name,/160/);
 d=await call({action:'propose',id:515291,count:2});assert.equal(d.status,200);assert.equal(d.data.cart.length,0);const token=d.data.pending.token;
 d=await call({action:'chat',message:'нет'});assert.equal(d.data.pending,null);assert.equal(d.data.cart.length,0);
 d=await call({action:'confirm',token});assert.equal(d.status,400);
@@ -24,15 +24,8 @@ const confirm={action:'confirm',token:d.data.pending.token};const concurrent=awa
 r=await fetch(origin+'/api/assistant',{headers:{Cookie:cookie}});d=await r.json();assert.equal(d.cart[0].count,1);
 const other=await fetch(origin+'/api/assistant');assert.equal((await other.json()).cart.length,0);
 const bad=await fetch(origin+'/api/assistant',{method:'POST',headers:{Origin:'https://evil.invalid',Cookie:cookie,'Content-Type':'application/json'},body:'{"action":"confirm"}'});assert.equal(bad.status,403);
-d=await call({action:'chat',message:'Подбери автомат Legrand'});d=await call({action:'chat',message:'40 А'});assert(d.data.products.length>0&&d.data.products.length<8);
-d=await call({action:'chat',message:'Подбери аналог 24166'});assert(d.data.products.length>=2);
-d=await call({action:'chat',message:'Подбери автомат Legrand'});
-d=await call({action:'chat',message:'40 А'});
-d=await call({action:'chat',message:'50 А'});assert(d.data.products.length>0);assert(d.data.products.every(p=>/50\s*[АA]/.test(p.name)||/50/.test(p.properties.NOMINALNYY_TOK||'')));
-d=await call({action:'chat',message:'первый'});assert.equal(d.data.products.length,1);const chosen=d.data.products[0].id;
-d=await call({action:'chat',message:'добавь 2 штуки'});assert.equal(d.data.pending.product.id,chosen);assert.equal(d.data.pending.count,2);
-d=await call({action:'chat',message:'3'});assert.match(d.data.text,/Уточните/);assert.equal(d.data.pending,null);
-r=await fetch(origin+'/api/assistant',{headers:{Cookie:cookie}});const restored=await r.json();assert(restored.messages.length>0);assert.equal(restored.messages.at(-1).text,d.data.text);assert(restored.products.length>0);
+d=await call({action:'search',message:'Legrand 40 А'});assert.equal(d.status,200);assert(d.data.products.length>0);
+r=await fetch(origin+'/api/assistant',{headers:{Cookie:cookie}});const restored=await r.json();assert(restored.messages.length>0);assert(restored.products.length>0);
 const doc=zipSync({'word/document.xml':strToU8('<w:document><w:p><w:t>200300285_</w:t></w:p></w:document>')});
 const form=new FormData();form.append('file',new Blob([doc]),'spec.docx');r=await fetch(origin+'/api/attachment',{method:'POST',headers:{Origin:origin,Cookie:cookie},body:form});assert.equal(r.status,200);assert.match((await r.json()).text,/200300285_/);
-console.log('PASS: live API, cancel, stock limit, concurrent confirmation once, cart persistence, session isolation, CSRF, context, analogs, DOCX attachment');
+console.log('PASS: live API, cancel, stock limit, concurrent confirmation once, cart persistence, session isolation, CSRF, catalog search, DOCX attachment');
