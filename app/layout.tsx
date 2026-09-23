@@ -1,8 +1,10 @@
+import {LocaleProvider} from './locale';
 import type { Metadata } from "next";
 import "./globals.css";
 import "./product.css";
 import "./redesign.css";
 import "./features.css";
+import "./storefront.css";
 
 export const metadata: Metadata = {
   title: "Электрокомплект · Консультант",
@@ -23,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><LocaleProvider>{children}</LocaleProvider></body>
     </html>
   );
 }

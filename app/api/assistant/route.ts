@@ -1,3 +1,5 @@
+import {catalogQuery} from '@/lib/i18n';
+import {withMessageIds,rateAnswer} from '@/lib/feedback';
 import {cities,available,parseSpecification,stageChange,confirmChange,managerDraft} from '@/lib/workflows';
 import snapshot from '@/data/catalog.json';
 import {alternatives,propertyLabels,certificates,refineQuery,decorate,explicitConfirmation,search,summary,validateCount,type Product} from '@/lib/domain';
@@ -11,7 +13,7 @@ async function live(id:number){
  let r:Response;try{r=await fetch(`https://ekt.kz/api/products/detail?id=${id}`,{headers:{Authorization:'Basic '+btoa(e.EKT_API_USER+':'+e.EKT_API_PASSWORD)},signal:AbortSignal.timeout(8000)})}catch{throw Error('Каталог временно недоступен. Не удалось проверить цену и остаток; корзина не изменена.')}
  if(!r.ok)throw Error('Каталог не подтвердил товар. Корзина не изменена.');const p=decorate(await r.json());if(p.id!==id)throw Error('API вернул другой товар.');return p;
 }
-export async function GET(request:Request){try{const s=await session(request,true);return json({city:s.state.city||'Все склады',cart:s.state.cart,pending:s.state.pending,messages:s.state.messages||s.state.history.map(m=>({role:m.role,text:m.content})),products:s.state.lastProducts?s.state.lastProducts.map(id=>items.find(p=>p.id===id)).filter(Boolean):[items.find(p=>p.id===515291),...items.filter(p=>p.quantity>0&&p.id!==515291).slice(0,3)].filter(Boolean),meta:meta()},200,s.fresh?`ekt_session=${s.id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${new URL(request.url).protocol==='https:'?'; Secure':''}`:undefined)}catch{return json({error:'Корзина временно недоступна. Попробуйте обновить страницу.'},503)}}
+export async function GET(request:Request){try{const s=await session(request,true);return json({city:s.state.city||'Все склады',cart:s.state.cart,pending:s.state.pending,messages:withMessageIds(s.state.messages||s.state.history.map(m=>({role:m.role,text:m.content}))),products:s.state.lastProducts?s.state.lastProducts.map(id=>items.find(p=>p.id===id)).filter(Boolean):[items.find(p=>p.id===515291),...items.filter(p=>p.quantity>0&&p.id!==515291).slice(0,3)].filter(Boolean),meta:meta()},200,s.fresh?`ekt_session=${s.id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${new URL(request.url).protocol==='https:'?'; Secure':''}`:undefined)}catch{return json({error:'Корзина временно недоступна. Попробуйте обновить страницу.'},503)}}
 export async function POST(request:Request){
  try{
   if(request.headers.get('origin')!==new URL(request.url).origin)return json({error:'Запрос с другого сайта отклонён.'},403);
@@ -19,11 +21,15 @@ export async function POST(request:Request){
   const raw=await request.text();if(raw.length>20000)return json({error:'Слишком длинный запрос.'},413);const b=JSON.parse(raw);
   const s=await session(request),st=s.state;const now=Date.now();if(now-st.rate.at>60000)st.rate={at:now,count:0};if(++st.rate.count>40)return json({error:'Слишком много запросов. Подождите минуту.'},429);await save(s);s.revision++;
   let result:any={};let message:string=typeof b.message==='string'?b.message.trim():'';if(message.length>2000)throw Error('Вопрос слишком длинный.');
+  const originalMessage=message;message=catalogQuery(message);
   let action=b.action;
+  if(action==='chat'&&/^(иә[,]?\s*қос|қосуды растаймын|растаймын)[.!]?$/i.test(originalMessage)){action='confirm';b.token=st.pending?.token}
+  if(action==='chat'&&/^(жоқ|бас тарту|қоспа)[.!]?$/i.test(originalMessage))action='cancel';
   if(action==='chat'&&explicitConfirmation(message)){action='confirm';b.token=st.pending?.token}
   if(action==='chat'&&/^(нет|отмена|не добавляй)[.!]?$/i.test(message))action='cancel';
   async function propose(p:Product,count:number){st.pending=await stageChange(st.cart,'add',[{id:p.id,count}],st.city||'Все склады',async()=>p);return{text:'Проверьте товар, количество, город и сумму. Корзина пока не изменена.'}}
-  if(action==='search'){result={products:search(items,message)}}
+  if(action==='feedback'){st.messages=rateAnswer(st.messages||st.history.map(m=>({role:m.role,text:m.content})),b.messageId,b.value);result={feedbackSaved:true}}
+  else if(action==='search'){result={products:search(items,message)}}
   else if(action==='city'){
    if(!cities.includes(b.city))throw Error('Неизвестный город.');st.city=b.city;st.pending=null;
    result={products:(st.lastProducts||items.slice(0,4).map(p=>p.id)).map(id=>items.find(p=>p.id===id)).filter(Boolean).sort((a:any,c:any)=>available(c,b.city)-available(a,b.city)),text:'Выбран город: '+b.city+'. Показываем остатки складов с этим городом в API. Корзина не изменена; неподтверждённое действие отменено.'};
@@ -77,11 +83,11 @@ export async function POST(request:Request){
   }else throw Error('Неизвестное действие.');
   if(result.products)st.lastProducts=result.products.map((p:Product)=>p.id);
   if(result.text){
-   const userText=message||(action==='propose'?'Выбран товар, количество: '+b.count:action==='confirm'?'Подтверждаю действие':action==='cancel'?'Отмена':'');
+   const userText=originalMessage||(action==='propose'?'Выбран товар, количество: '+b.count:action==='confirm'?'Подтверждаю действие':action==='cancel'?'Отмена':'');
    const prior=st.messages||st.history.map(m=>({role:m.role,text:m.content}));
-   st.messages=[...prior,...(userText?[{role:'user',text:userText}]:[]),{role:'assistant',text:result.text,sourceUrl:result.sourceUrl,cartUrl:result.cartUrl}].slice(-60);
+   st.messages=withMessageIds([...prior,...(userText?[{id:crypto.randomUUID(),role:'user',text:userText}]:[]),{id:crypto.randomUUID(),role:'assistant',text:result.text,sourceUrl:result.sourceUrl,cartUrl:result.cartUrl}].slice(-60));
    st.history=st.messages.slice(-8).map(m=>({role:m.role,content:m.text}));
   }
-  await save(s);return json({...result,city:st.city||'Все склады',messages:st.messages,cart:st.cart,pending:st.pending,meta:meta()});
+  await save(s);return json({...result,city:st.city||'Все склады',messages:withMessageIds(st.messages||st.history.map(m=>({role:m.role,text:m.content}))),cart:st.cart,pending:st.pending,meta:meta()});
  }catch(e:any){return json({error:e instanceof SyntaxError?'Некорректный JSON.':e.message||'Не удалось выполнить запрос.'},400)}
 }
