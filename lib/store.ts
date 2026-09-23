@@ -1,6 +1,6 @@
 import {env} from 'cloudflare:workers';
 export const settings=()=>env as unknown as Record<string,any>;
-export type State={cart:any[];pending:any;selected:number|null;history:any[];searchQuery?:string;rate:{at:number;count:number}};
+export type State={city?:string;specification?:any[];cart:any[];pending:any;selected:number|null;history:any[];messages?:any[];lastProducts?:number[];searchQuery?:string;rate:{at:number;count:number}};
 export const emptyState=():State=>({cart:[],pending:null,selected:null,history:[],rate:{at:Date.now(),count:0}});
 export async function session(request:Request,create=false){
  const db=settings().DB;if(!db)throw Error('Хранилище корзины не настроено.');

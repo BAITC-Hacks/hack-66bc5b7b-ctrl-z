@@ -1,5 +1,26 @@
 export type Product={id:number;name:string;article:string;price:number;quantity:number;url:string;image?:string;description?:string;stores?:{name:string;quantity:number}[];properties:Record<string,any>;warning?:string};
+export const propertyLabels:Record<string,string>={NOMINALNYY_TOK:'Номинальный ток',KOLICHESTVO_POLYUSOV:'Число полюсов',NOMINALNOE_NAPRYAZHENIE:'Номинальное напряжение',NOMINALNAYA_OTKLYUCHAYUSHCHAYA_SPOSOBNOST:'Отключающая способность',TORGOVAYA_MARKA:'Производитель',TIP_USTANOVKI:'Тип установки',KRATNOST_MIN:'Кратность заказа',ARTIKULPOSTAVSHCHIKA:'Артикул производителя',CML2_BAR_CODE:'Штрихкод',OBYEM:'Тип товара'};
+export function certificates(p:{properties?:Record<string,unknown>}){
+ const links:string[]=[];
+ for(const [key,value] of Object.entries(p.properties||{})){
+  if(!/cert|sert|сертиф/i.test(key))continue;
+  const candidates=JSON.stringify(value)?.match(/https?:\/\/[^"\s<>]+/g)||[];
+  for(const candidate of candidates){try{const url=new URL(candidate);if(url.protocol==='https:'&&(url.hostname==='ekt.kz'||url.hostname.endsWith('.ekt.kz')))links.push(url.href)}catch{}}
+ }
+ return [...new Set(links)];
+}
 export const norm=(s:unknown)=>String(s??'').toLowerCase().replace(/ё/g,'е').replace(/(\d)\s*а(?=\s|$)/g,'$1a');
+// Replace a changed parameter instead of accumulating contradictory constraints.
+export function refineQuery(previous:string|undefined,message:string){
+ const next=message.trim();
+ const units=[/(\d+(?:[.,]\d+)?)\s*[аa](?=\s|$|[,.!?])/gi,/(\d+)\s*(?:полюс\S*|ф)(?=\s|$|[,.!?])/gi,/(\d+)\s*[вv](?=\s|$|[,.!?])/gi];
+ if(!previous)return next;
+ const short=next.replace(/^(?:а\s+)?(?:лучше|тогда|нет[,]?|нужен|нужно|на)\s+/i,'');
+ if(!units.some(re=>{re.lastIndex=0;return re.test(short)})||short.split(/\s+/).length>5)return next;
+ let result=previous;
+ for(const re of units){re.lastIndex=0;const values=[...short.matchAll(re)];if(values.length){re.lastIndex=0;result=result.replace(re,' ').trim()+' '+values.at(-1)![0]}}
+ return result.replace(/\s+/g,' ').trim();
+}
 export function decorate(raw:any):Product{
  if(!raw||!Number.isSafeInteger(raw.id)||typeof raw.name!=='string'||!Number.isFinite(raw.price)||!Number.isFinite(raw.quantity)||raw.price<0||raw.quantity<0)throw Error('API вернул неполные данные товара. Уточните у менеджера.');
  const p={...raw,properties:raw.properties||{}};

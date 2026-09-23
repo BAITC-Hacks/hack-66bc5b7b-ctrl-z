@@ -3,3 +3,5 @@ body{margin:0;background:#f3f5f8;color:#182d45;font-family:Arial,Helvetica,sans-
 @media(max-width:560px){.products{grid-template-columns:1fr}.topbar{height:76px}.brandmark{width:33px;height:38px}.brand{font-size:11px;gap:7px}.brand small{font-size:8px;letter-spacing:1px}.topbar button{font-size:12px;padding:8px}.workhead h1{font-size:24px}.workhead p{font-size:14px}.conversation{padding:18px}.composer{margin:8px 12px 0}.columns{padding:0 12px 25px}.panel-header{padding:16px}.message{max-width:100%}}
 
 .upload-label{display:block;color:#385f83;font-size:12px;margin-bottom:12px;cursor:pointer}.upload-label input{display:block;font-size:12px;max-width:100%;margin:6px 0}.upload-label input::file-selector-button{background:#eef3f8;border:1px solid #d3dee8;border-radius:5px;padding:5px 8px;color:#244866}
+
+.conflict-label{display:block;color:#945817;font-size:12px;margin-bottom:9px;line-height:1.5}.product h3{overflow-wrap:anywhere}.conversation{overscroll-behavior:contain}.sheet-body .warning{border-radius:8px}

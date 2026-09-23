@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {decorate,search,alternatives,validateCount,explicitConfirmation} from '../lib/domain.ts';
+import {decorate,refineQuery,certificates,search,alternatives,validateCount,explicitConfirmation} from '../lib/domain.ts';
 import {zipSync,strToU8} from 'fflate';
 const items=JSON.parse(readFileSync(new URL('../data/catalog.json',import.meta.url))).items.map(decorate);
 assert.equal(search(items,'200300285_')[0].id,515291);
@@ -8,6 +8,9 @@ assert(items.find(p=>p.id===515291).warning);
 assert(alternatives(items,items.find(p=>p.id===24166)).length>=1);
 assert.throws(()=>validateCount(items[0],0));assert.throws(()=>validateCount(items[0],1));
 assert(!explicitConfirmation('да'));assert(!explicitConfirmation('не добавляй'));assert(explicitConfirmation('да, добавь'));
+assert.equal(refineQuery('автомат Legrand 40 А 3 полюса','50 А'),'автомат Legrand 3 полюса 50 А');
+assert.equal(refineQuery('автомат Legrand 40 А','3'),'3');
+assert.deepEqual(certificates({properties:{IMAGE:'https://ekt.kz/image.jpg',CERTIFICATE:'https://ekt.kz/cert.pdf',SERT_BAD:'javascript:alert(1)'}}),['https://ekt.kz/cert.pdf']);
 console.log('PASS: search, conflict detection, real analog, quantity validation, explicit consent');
 const origin=process.env.TEST_URL||'http://localhost:5173';let r=await fetch(origin+'/api/assistant');assert.equal(r.status,200);const cookie=r.headers.get('set-cookie').split(';')[0];
 async function call(body){const r=await fetch(origin+'/api/assistant',{method:'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify(body)});return{status:r.status,data:await r.json()}}
@@ -23,6 +26,13 @@ const other=await fetch(origin+'/api/assistant');assert.equal((await other.json(
 const bad=await fetch(origin+'/api/assistant',{method:'POST',headers:{Origin:'https://evil.invalid',Cookie:cookie,'Content-Type':'application/json'},body:'{"action":"confirm"}'});assert.equal(bad.status,403);
 d=await call({action:'chat',message:'Подбери автомат Legrand'});d=await call({action:'chat',message:'40 А'});assert(d.data.products.length>0&&d.data.products.length<8);
 d=await call({action:'chat',message:'Подбери аналог 24166'});assert(d.data.products.length>=2);
+d=await call({action:'chat',message:'Подбери автомат Legrand'});
+d=await call({action:'chat',message:'40 А'});
+d=await call({action:'chat',message:'50 А'});assert(d.data.products.length>0);assert(d.data.products.every(p=>/50\s*[АA]/.test(p.name)||/50/.test(p.properties.NOMINALNYY_TOK||'')));
+d=await call({action:'chat',message:'первый'});assert.equal(d.data.products.length,1);const chosen=d.data.products[0].id;
+d=await call({action:'chat',message:'добавь 2 штуки'});assert.equal(d.data.pending.product.id,chosen);assert.equal(d.data.pending.count,2);
+d=await call({action:'chat',message:'3'});assert.match(d.data.text,/Уточните/);assert.equal(d.data.pending,null);
+r=await fetch(origin+'/api/assistant',{headers:{Cookie:cookie}});const restored=await r.json();assert(restored.messages.length>0);assert.equal(restored.messages.at(-1).text,d.data.text);assert(restored.products.length>0);
 const doc=zipSync({'word/document.xml':strToU8('<w:document><w:p><w:t>200300285_</w:t></w:p></w:document>')});
 const form=new FormData();form.append('file',new Blob([doc]),'spec.docx');r=await fetch(origin+'/api/attachment',{method:'POST',headers:{Origin:origin,Cookie:cookie},body:form});assert.equal(r.status,200);assert.match((await r.json()).text,/200300285_/);
 console.log('PASS: live API, cancel, stock limit, concurrent confirmation once, cart persistence, session isolation, CSRF, context, analogs, DOCX attachment');
