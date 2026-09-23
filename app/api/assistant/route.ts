@@ -1,3 +1,4 @@
+import {liveProduct as live} from '@/lib/ekt';
 import {consult,aiConfigured,ConsultantError} from '@/lib/ai-consultant';
 import {catalogQuery} from '@/lib/i18n';
 import {withMessageIds,rateAnswer} from '@/lib/feedback';
@@ -8,12 +9,6 @@ import {session,save,settings} from '@/lib/store';
 const items:Product[]=snapshot.items.map(decorate);
 const json=(data:any,status=200,cookie?:string)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',...(cookie?{'Set-Cookie':cookie}:{})}});
 const meta=()=>({count:items.length,syncedAt:snapshot.syncedAt,cities,llm:aiConfigured(settings()),assistant:'ekt-ai'});
-async function live(id:number){
- if(!Number.isSafeInteger(id)||id<=0)throw Error('Некорректный ID товара.');
- const e=settings();if(!e.EKT_API_USER||!e.EKT_API_PASSWORD)throw Error('Доступ к живому каталогу не настроен. Добавление недоступно.');
- let r:Response;try{r=await fetch(`https://ekt.kz/api/products/detail?id=${id}`,{headers:{Authorization:'Basic '+btoa(e.EKT_API_USER+':'+e.EKT_API_PASSWORD)},signal:AbortSignal.timeout(8000)})}catch{throw Error('Каталог временно недоступен. Не удалось проверить цену и остаток; корзина не изменена.')}
- if(!r.ok)throw Error('Каталог не подтвердил товар. Корзина не изменена.');const p=decorate(await r.json());if(p.id!==id)throw Error('API вернул другой товар.');return p;
-}
 export async function GET(request:Request){try{const s=await session(request,true);return json({city:s.state.city||'Все склады',cart:s.state.cart,pending:s.state.pending,messages:withMessageIds(s.state.messages||s.state.history.map(m=>({role:m.role,text:m.content}))),products:s.state.lastProducts?s.state.lastProducts.map(id=>items.find(p=>p.id===id)).filter(Boolean):[items.find(p=>p.id===515291),...items.filter(p=>p.quantity>0&&p.id!==515291).slice(0,3)].filter(Boolean),meta:meta()},200,s.fresh?`ekt_session=${s.id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${new URL(request.url).protocol==='https:'?'; Secure':''}`:undefined)}catch{return json({error:'Корзина временно недоступна. Попробуйте обновить страницу.'},503)}}
 export async function POST(request:Request){
  try{
