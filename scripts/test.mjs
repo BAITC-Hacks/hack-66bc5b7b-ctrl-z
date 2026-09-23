@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {decorate,search,alternatives,validateCount,explicitConfirmation} from '../lib/domain.ts';
+import {zipSync,strToU8} from 'fflate';
+const items=JSON.parse(readFileSync(new URL('../data/catalog.json',import.meta.url))).items.map(decorate);
+assert.equal(search(items,'200300285_')[0].id,515291);
+assert(items.find(p=>p.id===515291).warning);
+assert(alternatives(items,items.find(p=>p.id===24166)).length>=1);
+assert.throws(()=>validateCount(items[0],0));assert.throws(()=>validateCount(items[0],1));
+assert(!explicitConfirmation('да'));assert(!explicitConfirmation('не добавляй'));assert(explicitConfirmation('да, добавь'));
+console.log('PASS: search, conflict detection, real analog, quantity validation, explicit consent');
+const origin=process.env.TEST_URL||'http://localhost:5173';let r=await fetch(origin+'/api/assistant');assert.equal(r.status,200);const cookie=r.headers.get('set-cookie').split(';')[0];
+async function call(body){const r=await fetch(origin+'/api/assistant',{method:'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify(body)});return{status:r.status,data:await r.json()}}
+let d=await call({action:'chat',message:'Есть товар 515291?'});assert.equal(d.status,200);assert.equal(d.data.cart.length,0);assert.match(d.data.text,/160/);
+d=await call({action:'propose',id:515291,count:2});assert.equal(d.status,200);assert.equal(d.data.cart.length,0);const token=d.data.pending.token;
+d=await call({action:'chat',message:'нет'});assert.equal(d.data.pending,null);assert.equal(d.data.cart.length,0);
+d=await call({action:'confirm',token});assert.equal(d.status,400);
+d=await call({action:'propose',id:515291,count:100000});assert.equal(d.status,400);
+d=await call({action:'propose',id:515291,count:1});assert.equal(d.status,200);
+const confirm={action:'confirm',token:d.data.pending.token};const concurrent=await Promise.all([call(confirm),call(confirm)]);assert.equal(concurrent.filter(v=>v.status===200).length,1);
+r=await fetch(origin+'/api/assistant',{headers:{Cookie:cookie}});d=await r.json();assert.equal(d.cart[0].count,1);
+const other=await fetch(origin+'/api/assistant');assert.equal((await other.json()).cart.length,0);
+const bad=await fetch(origin+'/api/assistant',{method:'POST',headers:{Origin:'https://evil.invalid',Cookie:cookie,'Content-Type':'application/json'},body:'{"action":"confirm"}'});assert.equal(bad.status,403);
+d=await call({action:'chat',message:'Подбери автомат Legrand'});d=await call({action:'chat',message:'40 А'});assert(d.data.products.length>0&&d.data.products.length<8);
+d=await call({action:'chat',message:'Подбери аналог 24166'});assert(d.data.products.length>=2);
+const doc=zipSync({'word/document.xml':strToU8('<w:document><w:p><w:t>200300285_</w:t></w:p></w:document>')});
+const form=new FormData();form.append('file',new Blob([doc]),'spec.docx');r=await fetch(origin+'/api/attachment',{method:'POST',headers:{Origin:origin,Cookie:cookie},body:form});assert.equal(r.status,200);assert.match((await r.json()).text,/200300285_/);
+console.log('PASS: live API, cancel, stock limit, concurrent confirmation once, cart persistence, session isolation, CSRF, context, analogs, DOCX attachment');
