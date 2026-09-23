@@ -16,7 +16,8 @@
     "test:integration": "node --experimental-strip-types scripts/test.mjs",
     "test:workflows": "node scripts/test-workflows.mjs",
     "test:exports": "node scripts/test-localization-export.mjs",
-    "test:catalog": "node scripts/test-catalog-browser.mjs"
+    "test:catalog": "node scripts/test-catalog-browser.mjs",
+    "test:currency": "node scripts/test-currency.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

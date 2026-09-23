@@ -22,6 +22,8 @@ export async function POST(request:Request){
   const s=await session(request),st=s.state;const now=Date.now();if(now-st.rate.at>60000)st.rate={at:now,count:0};if(++st.rate.count>40)return json({error:'Слишком много запросов. Подождите минуту.'},429);await save(s);s.revision++;
   let result:any={};let message:string=typeof b.message==='string'?b.message.trim():'';if(message.length>2000)throw Error('Вопрос слишком длинный.');
   const originalMessage=message;message=catalogQuery(message);
+  if(b.action==='chat'&&/^(yes,? add|confirm|confirm addition)[.!]?$/i.test(originalMessage)){b.action='confirm';b.token=st.pending?.token}
+  if(b.action==='chat'&&/^(no|cancel|do not add)[.!]?$/i.test(originalMessage))b.action='cancel';
   let action=b.action;
   if(action==='chat'&&/^(иә[,]?\s*қос|қосуды растаймын|растаймын)[.!]?$/i.test(originalMessage)){action='confirm';b.token=st.pending?.token}
   if(action==='chat'&&/^(жоқ|бас тарту|қоспа)[.!]?$/i.test(originalMessage))action='cancel';

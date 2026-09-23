@@ -1,4 +1,5 @@
-export type Locale = 'ru' | 'kk';
+import {en} from './english';
+export type Locale = 'ru' | 'kk' | 'en';
 // Catalog names, articles, certificates and user-entered text remain in the source language.
 const kk:Record<string,string> = {
  'КОНСУЛЬТАНТ ПО КАТАЛОГУ':'КАТАЛОГ БОЙЫНША КЕҢЕСШІ','HackAlem AI · прототип':'HackAlem AI · прототип',
@@ -75,10 +76,19 @@ Object.assign(kk,{
   "Встраивание на настоящий ekt.kz требует доступа владельца сайта. Прямое управление его корзиной требует отдельного API; демонстрационная корзина не создаёт заказов.": "Нақты ekt.kz сайтына ендіру үшін сайт иесінің рұқсаты қажет. Оның себетін басқаруға бөлек API керек; демонстрациялық себет тапсырыс жасамайды.",
   "Цены сохранены при подтверждении корзины; выгрузка не обновляет цены. Это не счёт и не заказ; товары не зарезервированы.": "Бағалар себетті растаған кезде сақталған; жүктеу бағаларды жаңартпайды. Бұл шот немесе тапсырыс емес; тауарлар резервтелмеген."
 });
+Object.assign(kk,{
+ 'Добавить':'Қосу','Выберите количество':'Санын таңдаңыз','Проверить и добавить':'Тексеру және қосу','Проверить перед добавлением':'Қоспас бұрын тексеріңіз',
+ '1. Выберите товар':'1. Тауарды таңдаңыз','2. Укажите количество':'2. Санын көрсетіңіз','3. Подтвердите добавление':'3. Қосуды растаңыз',
+ 'Нажмите «Добавить» у товара. Затем проверьте количество и подтвердите — товар появится в корзине.':'Тауардың «Қосу» батырмасын басыңыз. Саны дұрыс екенін тексеріп, растаңыз — тауар себетке қосылады.',
+ 'Открыть корзину':'Себетті ашу','Корзина обновлена':'Себет жаңартылды','Развернуть чат':'Чатты кеңейту','Показать товары рядом':'Тауарларды қатар көрсету',
+ 'Введите целое количество с учётом остатка и кратности заказа.':'Қор мен тапсырыс еселігін ескеріп, бүтін сан енгізіңіз.','Уже в корзине:':'Себетте бар:','Кратность:':'Еселік:',
+ 'Изменения корзины подтверждаются отдельно.':'Себет өзгерістері бөлек расталады.','Закрыть':'Жабу','Вернуться на главную':'Басты бетке оралу','Цена':'Баға'
+});
 const escape=(s:string)=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const pattern=new RegExp(Object.keys(kk).sort((a,b)=>b.length-a.length).map(escape).join('|'),'g');
-export function translate(text:unknown,locale:Locale):string {const s=String(text??'');return locale==='kk'?(kk[s]??s.replace(pattern,m=>kk[m])):s}
+const enPattern=new RegExp(Object.keys(en).sort((a,b)=>b.length-a.length).map(escape).join('|'),'g');
+export function translate(text:unknown,locale:Locale):string {const s=String(text??'');return locale==='en'?(en[s]??s.replace(enPattern,m=>en[m])):locale==='kk'?(kk[s]??s.replace(pattern,m=>kk[m])):s}
 // A small deterministic vocabulary for catalog intent; never lets a translation authorize a purchase.
 export function catalogQuery(text:string){
- return text.replace(/тауары?\s+бар\s+ма\??/gi,'товар').replace(/бар\s+ма\??/gi,'есть').replace(/автоматын|автоматы/gi,'автомат').replace(/баламасын\s+таңда/gi,'подбери аналог').replace(/балама(?:сын)?/gi,'аналог').replace(/жеткізу/gi,'доставка').replace(/төлем/gi,'оплата').replace(/сипаттамалары?(?:н)?/gi,'характеристики').replace(/бағасы/gi,'цена').replace(/полюсті/gi,'полюса').replace(/полюс/gi,'полюс').replace(/бірінші(?:сін)?/gi,'первый').replace(/екінші(?:сін)?/gi,'второй').replace(/үшінші(?:сін)?/gi,'третий').replace(/төртінші(?:сін)?/gi,'четвертый').replace(/(\d+)\s*дана(?:сын)?\s*қос/gi,'добавь $1 шт').replace(/себетке\s+қос/gi,'добавь').replace(/(^|\s)қос(?=\s|$)/gi,'$1добавь').replace(/таңда|тауып бер/gi,'подбери').replace(/керек|қажет/gi,'нужен').replace(/қандай|шарттары|бойынша/gi,'').replace(/дана/gi,'шт').trim();
+ return text.replace(/\ba(?=\s+[a-z])/g,' ').replace(/circuit breakers?/gi,'автомат').replace(/\b(?:find|select)\b/gi,'подбери').replace(/\balternatives?\b/gi,'аналог').replace(/\b(?:for|an|the|is|are|available|please|i|need)\b/gi,' ').replace(/\b(?:in stock|stock)\b/gi,'наличие').replace(/\bdelivery(?: terms)?\b/gi,'доставка').replace(/\b(?:price|cost)\b/gi,'цена').replace(/\bproduct\b/gi,'товар').replace(/\badd\b/gi,'добавь').replace(/\b(?:units?|pieces?|pcs)\b/gi,'шт').replace(/\bpoles?\b/gi,'полюса').replace(/\bamps?\b/gi,'А').replace(/\bvolts?\b/gi,'В').replace(/тауары?\s+бар\s+ма\??/gi,'товар').replace(/бар\s+ма\??/gi,'есть').replace(/автоматын|автоматы/gi,'автомат').replace(/баламасын\s+таңда/gi,'подбери аналог').replace(/балама(?:сын)?/gi,'аналог').replace(/жеткізу/gi,'доставка').replace(/төлем/gi,'оплата').replace(/сипаттамалары?(?:н)?/gi,'характеристики').replace(/бағасы/gi,'цена').replace(/полюсті/gi,'полюса').replace(/полюс/gi,'полюс').replace(/бірінші(?:сін)?/gi,'первый').replace(/екінші(?:сін)?/gi,'второй').replace(/үшінші(?:сін)?/gi,'третий').replace(/төртінші(?:сін)?/gi,'четвертый').replace(/(\d+)\s*дана(?:сын)?\s*қос/gi,'добавь $1 шт').replace(/себетке\s+қос/gi,'добавь').replace(/(^|\s)қос(?=\s|$)/gi,'$1добавь').replace(/таңда|тауып бер/gi,'подбери').replace(/керек|қажет/gi,'нужен').replace(/қандай|шарттары|бойынша/gi,'').replace(/дана/gi,'шт').trim();
 }

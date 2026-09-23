@@ -5,6 +5,7 @@ import "./product.css";
 import "./redesign.css";
 import "./features.css";
 import "./storefront.css";
+import "./shopping.css";
 
 export const metadata: Metadata = {
   title: "Электрокомплект · Консультант",

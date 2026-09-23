@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import ts from 'typescript';
 const base=new URL('../.sites-runtime/catalog-tests/',import.meta.url);await mkdir(base,{recursive:true});
-for(const name of ['domain','workflows','catalog-browser']){const src=await readFile(new URL('../lib/'+name+'.ts',import.meta.url),'utf8');let js=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;js=js.replaceAll("'./domain'","'./domain.mjs'").replaceAll("'./workflows'","'./workflows.mjs'");await writeFile(new URL(name+'.mjs',base),js)}
+for(const name of ['english','i18n','domain','workflows','catalog-browser']){const src=await readFile(new URL('../lib/'+name+'.ts',import.meta.url),'utf8');let js=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;js=js.replaceAll("'./english'","'./english.mjs'").replaceAll("'./currency'","'./currency.mjs'").replaceAll("'./i18n'","'./i18n.mjs'").replaceAll("'./domain'","'./domain.mjs'").replaceAll("'./workflows'","'./workflows.mjs'");await writeFile(new URL(name+'.mjs',base),js)}
 const {filterCatalog,emptyFilters,categoryOf,categories}=await import(new URL('catalog-browser.mjs',base));const{available}=await import(new URL('workflows.mjs',base));const data=JSON.parse(await readFile(new URL('../data/catalog.json',import.meta.url),'utf8'));const items=data.items;
 assert.equal(filterCatalog(items,emptyFilters).length,items.length);
 assert.deepEqual(filterCatalog(items,{...emptyFilters,query:'200300273_'}).map(p=>p.id),[515279]);

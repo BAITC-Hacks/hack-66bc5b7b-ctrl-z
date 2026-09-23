@@ -1,3 +1,4 @@
+import {catalogQuery} from './i18n';
 import {norm,type Product} from './domain';
 import {available} from './workflows';
 export const categories=[
@@ -12,14 +13,15 @@ export const categories=[
 export function categoryOf(p:Product){const u=p.url.toLowerCase();if(/korobki/.test(u))return 'boxes';if(/shchitovoe/.test(u))return 'panels';if(/rele_|avtomatizatsiya/.test(u))return 'relays';if(/differents|differen/.test(u))return 'protection';if(/svetilniki|megalight/.test(u))return 'lighting';if(/avtomaticheskie|dekraft/.test(u))return 'breakers';return 'other'}
 export type CatalogFilters={query:string;category:string;brand:string;stock:boolean;min:string;max:string;sort:string;city:string;amps:string};
 export const emptyFilters:CatalogFilters={query:'',category:'all',brand:'all',stock:false,min:'',max:'',sort:'default',city:'Все склады',amps:'all'};
-export function filterCatalog(items:Product[],f:CatalogFilters){
- const q=norm(f.query.trim()),tokens=q.split(/\s+/).filter(Boolean);
+export function filterCatalog(items:Product[],f:CatalogFilters,priceRate=1){
+ const q=norm(catalogQuery(f.query.trim())),tokens=q.split(/\s+/).filter(t=>t&&!/^(подбери|найди|товар|есть|нужен|наличие)$/.test(t));
  const list=items.filter(p=>{
   if(f.category!=='all'&&categoryOf(p)!==f.category)return false;
   if(f.brand!=='all'&&String(p.properties.TORGOVAYA_MARKA||'').trim()!==f.brand)return false;
   if(f.stock&&available(p,f.city)<=0)return false;
-  if(f.min!==''&&Number.isFinite(Number(f.min))&&p.price<Number(f.min))return false;
-  if(f.max!==''&&Number.isFinite(Number(f.max))&&p.price>Number(f.max))return false;
+  const displayPrice=Math.round((p.price/priceRate+Number.EPSILON)*100)/100;
+  if(f.min!==''&&Number.isFinite(Number(f.min))&&displayPrice<Number(f.min))return false;
+  if(f.max!==''&&Number.isFinite(Number(f.max))&&displayPrice>Number(f.max))return false;
   if(f.amps!=='all'&&String(p.properties.NOMINALNYY_TOK||'').match(/\d+/)?.[0]!==f.amps)return false;
   const text=norm([p.id,p.article,p.name,...Object.values(p.properties)].join(' '));
   return tokens.every(term=>text.includes(term)||(/автомат|автоматы|автоматын/.test(term)&&categoryOf(p)==='breakers'));
